@@ -53,11 +53,12 @@ def get_birthdays_by_user(user_id):
 
 
 # Возвращает список дней рождений на сегодня
-def get_all_birthdays_today():
+def get_all_birthdays_today(user_id):
     today = date.today()
     session = __factory()
     try:
-        birthdays = session.query(Birthday).filter(Birthday.date.like(f"%-{today.month:02d}-{today.day:02d}")).all()
+        birthdays = (session.query(Birthday).filter(Birthday.date.like(f"%-{today.month:02d}-{today.day:02d}"))
+                     .filter_by(user_id=user_id).all())
         return birthdays
     finally:
         session.close()
@@ -81,6 +82,4 @@ def delete_birthday(user_id, surname_name):
     finally:
         session.close()
 
-
-add_birthday(123456789, "Иван", "2000-01-01", group="коллеги")
 
