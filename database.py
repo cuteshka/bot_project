@@ -82,4 +82,10 @@ def delete_birthday(user_id, surname_name):
     finally:
         session.close()
 
-
+# возвращает список пользователей, которые добавляли данные
+def get_all_user_ids():
+    ids = set()
+    session = __factory()
+    for user in session.query(Birthday).all():
+        ids.add(user.user_id)
+    return ids

@@ -1,13 +1,14 @@
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, \
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ConversationHandler, \
     CallbackQueryHandler
-from database import add_birthday, get_birthdays_by_user, delete_birthday, get_all_birthdays_today
+from database import add_birthday, get_birthdays_by_user, delete_birthday, get_all_birthdays_today, get_all_user_ids
 from utils import create_keyboard
 from config import BOT_TOKEN
 import schedule
 import time
 import threading
+import asyncio
 
 # Запускаем логгирование
 logging.basicConfig(
@@ -210,37 +211,63 @@ async def button(update, context):
         await query.edit_message_text("Неизвестная опция.")
 
 
-# # --- Отправка ежедневных уведомлений ---
-# async def send_daily_reminders(context):
-#     birthdays = get_all_birthdays_today()
-#     if birthdays:
-#         for birthday in birthdays:
-#             try:
-#                 await context.bot.send_message(chat_id=birthday.user_id,
-#                                                text=f"Сегодня день рождения у {birthday.name}! Не забудьте поздравить!")
-#                 print(f"Отправлено уведомление пользователю {birthday.user_id} о дне рождении {birthday.name}")
-#             except Exception as e:
-#                 print(f"Не удалось отправить уведомление пользователю {birthday.user_id}: {e}")
+# --- Отправка ежедневных уведомлений ---
+def send_daily_reminders(context, user_id):
+    birthdays = get_all_birthdays_today(user_id)
+    if birthdays:
+        for birthday in birthdays:
+            try:
+                context.bot.send_message(chat_id=birthday.user_id,
+                                         text=f"Сегодня день рождения у {birthday.surname_name}! Не забудьте поздравить!")
+                print(f"Отправлено уведомление пользователю {birthday.user_id} о дне рождении {birthday.surname_name}")
+            except Exception as e:
+                print(f"Не удалось отправить уведомление пользователю {birthday.user_id}: {e}")
+
+
+# Задача для планировщика.
+def job(application, user_id):
+    send_daily_reminders(application, user_id)
+
 
 # Запускает планировщик задач.
-# def run_scheduler(application):
-#
-# Задача для планировщика.
-#     async def job():
-#         await send_daily_reminders(application.bot)
-#
-#     schedule.every().day.at("09:00").do(lambda: asyncio.run(job()))  # Отправляем в 9 утра
-#
-#     while True:
-#         schedule.run_pending()
-#         time.sleep(60)  # Проверяем каждую минуту
-#
-#
-# import asyncio
+def run_scheduler(application):
+    async def scheduled_job():
+        # Получаем всех пользователей, для которых нужно выполнить рассылку.
+        user_ids = get_all_user_ids()
+        for user_id in user_ids:
+            # await job(application, user_id)
+            birthdays = get_all_birthdays_today(user_id)
+            if birthdays:
+                for birthday in birthdays:
+                    try:
+                        await application.bot.send_message(chat_id=birthday.user_id,
+                                                 text=f"Сегодня день рождения у {birthday.surname_name}! Не забудьте поздравить!")
+                        print(
+                            f"Отправлено уведомление пользователю {birthday.user_id} о дне рождении {birthday.surname_name}")
+                    except Exception as e:
+                        print(f"Не удалось отправить уведомление пользователю {birthday.user_id}: {e}")
+
+    def run_async_job():
+        asyncio.run(scheduled_job())
+
+    # schedule.every().day.at("20:25").do(scheduled_job)
+    schedule.every(5).seconds.do(run_async_job)
+
+    def scheduler_loop():
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+
+    scheduler_thread = threading.Thread(target=scheduler_loop, daemon=True)
+    scheduler_thread.start()
+
 
 # Запускает бота
 def main():
     application = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    # Сохраняем цикл событий в application для использования в планировщике.
+    # application.loop = asyncio.get_running_loop()
 
     # Обработчики команд
     application.add_handler(CommandHandler("start", start))
@@ -275,7 +302,7 @@ def main():
     application.add_handler(delete_birthday_handler)
 
     # Запуск планировщика в отдельном потоке
-    # threading.Thread(target=run_scheduler, args=(application,), daemon=True).start()
+    run_scheduler(application)
 
     # Запуск бота
     # await application.run_polling()
