@@ -235,23 +235,23 @@ def run_scheduler(application):
         # Получаем всех пользователей, для которых нужно выполнить рассылку.
         user_ids = get_all_user_ids()
         for user_id in user_ids:
-            # await job(application, user_id)
             birthdays = get_all_birthdays_today(user_id)
             if birthdays:
                 for birthday in birthdays:
                     try:
                         await application.bot.send_message(chat_id=birthday.user_id,
-                                                 text=f"Сегодня день рождения у {birthday.surname_name}! Не забудьте поздравить!")
+                                                           text=f"Сегодня день рождения у {birthday.surname_name}!"
+                                                                f" Не забудьте поздравить!")
                         print(
-                            f"Отправлено уведомление пользователю {birthday.user_id} о дне рождении {birthday.surname_name}")
+                            f"Отправлено уведомление пользователю {birthday.user_id}"
+                            f" о дне рождении {birthday.surname_name}")
                     except Exception as e:
                         print(f"Не удалось отправить уведомление пользователю {birthday.user_id}: {e}")
 
     def run_async_job():
         asyncio.run(scheduled_job())
 
-    # schedule.every().day.at("20:25").do(scheduled_job)
-    schedule.every(5).seconds.do(run_async_job)
+    schedule.every().day.at("9:00").do(run_async_job)
 
     def scheduler_loop():
         while True:
@@ -265,9 +265,6 @@ def run_scheduler(application):
 # Запускает бота
 def main():
     application = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    # Сохраняем цикл событий в application для использования в планировщике.
-    # application.loop = asyncio.get_running_loop()
 
     # Обработчики команд
     application.add_handler(CommandHandler("start", start))
@@ -305,10 +302,8 @@ def main():
     run_scheduler(application)
 
     # Запуск бота
-    # await application.run_polling()
     application.run_polling()
 
 
 if __name__ == '__main__':
-    # asyncio.run(main())
     main()
