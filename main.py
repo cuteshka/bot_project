@@ -251,7 +251,7 @@ def run_scheduler(application):
     def run_async_job():
         asyncio.run(scheduled_job())
 
-    schedule.every().day.at("9:00").do(run_async_job)
+    schedule.every().day.at("09:00").do(run_async_job)
 
     def scheduler_loop():
         while True:
